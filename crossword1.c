@@ -13,8 +13,12 @@
 #define MAX_GRID_SIZE 25
 #define MAX_WORD_LENGTH 25
 
-#define WORD_FILE_NAME "words.txt"
-#define GRID_FILE_NAME "grid.txt"
+#define WORD_FILE_NAME "words3.txt"
+#define GRID_FILE_NAME "grid3.txt"
+#define REZULT_FILE_NAME "solution.txt"
+#define WALL_OUTPUT_SYMBOL '.'
+#define WALL_SYMBOL '1'
+#define EMPTY_SYMBOL '0'
 
 // Structure for storing information about a word
 typedef struct word{
@@ -40,10 +44,10 @@ typedef struct grid{
 
 void printGrid(Grid *grid, FILE *fp);
 
-// Reads word list and grid information. Exits program on error
-void loadInfo(Word words[], int *word_count, Grid *grid) {
-    FILE *word_file = fopen(WORD_FILE_NAME, "r");
-    FILE *grid_file = fopen(GRID_FILE_NAME, "r");
+// Loads word list and grid information from files with given names. Exits program on error
+void loadInfo(char grid_file_name[], char word_file_name[], Word words[], int *word_count, Grid *grid) {
+    FILE *word_file = fopen(word_file_name, "r");
+    FILE *grid_file = fopen(grid_file_name, "r");
 
     if ((word_file == NULL) || (grid_file == NULL)) {
         printf("File could not be opened. Exiting program");
@@ -82,7 +86,7 @@ void loadInfo(Word words[], int *word_count, Grid *grid) {
     fclose(grid_file);
 }
 
-// Get horizontal and vertical empty slots in grid
+// Gets horizontal and vertical empty slots in grid
 void getSlots(Grid *g, Slot horizontal[], int *h_count, Slot vertical[], int *v_count) {
     *h_count = 0;
     *v_count = 0;
@@ -91,9 +95,9 @@ void getSlots(Grid *g, Slot horizontal[], int *h_count, Slot vertical[], int *v_
     for (int row = 0, size; row < g->row; ++row) {
         for (int col = 0; col < g->col - 1; ++col) {
             // Look for a new slot
-            if(g->matrix[row][col] == '0' && g->matrix[row][col+1] == '0') {
+            if(g->matrix[row][col] == EMPTY_SYMBOL && g->matrix[row][col+1] == EMPTY_SYMBOL) {
                 // Find slot size
-                for (size = 2; col + size < g->col && g->matrix[row][col+size] == '0'; ++size)
+                for (size = 2; col + size < g->col && g->matrix[row][col+size] == EMPTY_SYMBOL; ++size)
                     ;
                 // Add this slot
                 Slot s;
@@ -111,9 +115,9 @@ void getSlots(Grid *g, Slot horizontal[], int *h_count, Slot vertical[], int *v_
     for (int col = 0, size; col < g->col; ++col) {
         for (int row = 0; row < g->row - 1; ++row) {
             // Look for a new slot
-            if(g->matrix[row][col] == '0' && g->matrix[row+1][col] == '0') {
+            if(g->matrix[row][col] == EMPTY_SYMBOL && g->matrix[row+1][col] == EMPTY_SYMBOL) {
                 // Find slot size
-                for (size = 2; row + size < g->row && g->matrix[row+size][col] == '0'; ++size)
+                for (size = 2; row + size < g->row && g->matrix[row+size][col] == EMPTY_SYMBOL; ++size)
                     ;
                 // Add this slot
                 Slot s;
@@ -136,7 +140,7 @@ int fill(Grid *g, Slot *s, char word[], int dir) {
     if (dir == 0) {
         // Check if word can be placed
         for (int i = s->col; i < s->col + s->length; ++i) {
-            if (g->matrix[s->row][i] != '0' && g->matrix[s->row][i] != word[i - s->col]) {
+            if (g->matrix[s->row][i] != EMPTY_SYMBOL && g->matrix[s->row][i] != word[i - s->col]) {
                 return 0;
             }
         }
@@ -149,7 +153,7 @@ int fill(Grid *g, Slot *s, char word[], int dir) {
     } else {
         // Check if word can be placed
         for (int i = s->row; i < s->row + s->length; ++i) {
-            if (g->matrix[i][s->col] != '0' && g->matrix[i][s->col] != word[i - s->row]) {
+            if (g->matrix[i][s->col] != EMPTY_SYMBOL && g->matrix[i][s->col] != word[i - s->row]) {
                 return 0;
             }
         }
@@ -173,7 +177,7 @@ void unfill(Grid *g, Slot *s, char word[], int dir) {
         // Remove letters if needed
         for (int i = s->col; i < s->col + s->length; ++i) {
             if (g->counts[s->row][i] == 0) {
-                g->matrix[s->row][i] = '0';
+                g->matrix[s->row][i] = EMPTY_SYMBOL;
             }
         }
     } else {
@@ -184,7 +188,7 @@ void unfill(Grid *g, Slot *s, char word[], int dir) {
         // Place word
         for (int i = s->row; i < s->row + s->length; ++i) {
             if (g->counts[i][s->col] == 0) {
-                g->matrix[i][s->col] = '0';
+                g->matrix[i][s->col] = EMPTY_SYMBOL;
             }
         }
     }
@@ -240,13 +244,21 @@ int solve(Grid *g, Word words[], int *word_count, Slot horizontal[], int *h_coun
 void printGrid(Grid *grid, FILE *fp) {
     for (int i = 0; i < grid->row; ++i) {
         for (int j = 0; j < grid->col; ++j) {
-            fputc(grid->matrix[i][j], fp);
+            char c = (grid->matrix[i][j] == WALL_SYMBOL) ? WALL_OUTPUT_SYMBOL : grid->matrix[i][j];
+            printf("%c", c);
         }
-        fputc('\n', fp);
+        printf("\n");
     }
+
+    // for (int i = 0; i < grid->row; ++i) {
+    //     for (int j = 0; j < grid->col; ++j) {
+    //         fputc(grid->matrix[i][j], fp);
+    //     }
+    //     fputc('\n', fp);
+    // }
 }
 
-int main() {
+int main(int argc, char *argv[]) {
     int word_count = 0;
     Word words[MAX_WORD_COUNT];
     Grid grid;
@@ -255,16 +267,40 @@ int main() {
     int h_count;        // horizontal slot count
     int v_count;        // vertical slot count
 
-    loadInfo(words, &word_count, &grid);
+
+    // File names were provided by command line
+    if (argc == 3) {
+        loadInfo(argv[1], argv[2], words, &word_count, &grid);
+    } else { // Use predefined file names
+        loadInfo(GRID_FILE_NAME, WORD_FILE_NAME, words, &word_count, &grid);
+    }
     getSlots(&grid, horizontal, &h_count, vertical, &v_count);
 
-    FILE *result_file = fopen("rez.txt", "w");
 
     if (solve(&grid, words, &word_count, horizontal, &h_count, vertical, &v_count, 0) == 0) {
-        printf("No solution.");
+        printf("No solution");
         return 0;
     }
+
+    FILE *result_file = fopen(REZULT_FILE_NAME, "w");
+    if (result_file == 0) {
+        printf("File could not be opened. Exiting program");
+        return 0;
+    }
+
     printGrid(&grid, result_file);
+
+    // print slot info
+    // printf("Horizontal %d:\n", h_count);
+    // for (int i = 0; i < h_count; ++i) {
+    //     printf("row: %d col: %d length: %d\n", horizontal[i].row, horizontal[i].col, horizontal[i].length);
+    // }
+    // printf("Vertical %d:\n", v_count);
+    // for (int i = 0; i < v_count; ++i) {
+    //     printf("row: %d col: %d length: %d\n", vertical[i].row, vertical[i].col, vertical[i].length);
+    // }
+    // printf("\n");
+
 
     fclose(result_file);
 
