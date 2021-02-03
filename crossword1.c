@@ -1,15 +1,12 @@
 /*  Author: Donatas Pucinskas
  *  Program to solve crosswords given grid and word list.
  *  This implementation uses recursive backtracking.
- *  Program works only partially: there is a logical error in backtracking function, 
- *  so it only sometimes produces correct output.
  */ 
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#define MAX_WORD_COUNT 50
+#define MAX_WORD_COUNT 1000
 #define MAX_GRID_SIZE 25
 #define MAX_WORD_LENGTH 25
 
@@ -196,7 +193,9 @@ void unfill(Grid *g, Slot *s, char word[], int dir) {
 
 // Recursive function to generate crossword solution
 // Return value: 0 - if solution was not found, 1 - solution was found
-int solve(Grid *g, Word words[], int *word_count, Slot horizontal[], int *h_count, Slot vertical[], int *v_count, int slot_index) {
+int solve(int *c_count, Grid *g, Word words[], int *word_count, Slot horizontal[], int *h_count, Slot vertical[], int *v_count, int slot_index) {
+    *c_count += 1;
+    
     // All slots are filled
     if (slot_index == (*h_count + *v_count)) {
         return 1;
@@ -208,7 +207,7 @@ int solve(Grid *g, Word words[], int *word_count, Slot horizontal[], int *h_coun
             if (words[i].used == 0 && words[i].length == horizontal[slot_index].length) {
                 if (fill(g, horizontal + slot_index, words[i].str, 0)) {
                     words[i].used = 1;
-                    if (solve(g, words, word_count, horizontal, h_count, vertical, v_count, slot_index + 1)) {
+                    if (solve(c_count, g, words, word_count, horizontal, h_count, vertical, v_count, slot_index + 1)) {
                         return 1;
                     }
 
@@ -225,7 +224,7 @@ int solve(Grid *g, Word words[], int *word_count, Slot horizontal[], int *h_coun
             if (words[i].used == 0 && words[i].length == vertical[v_slot_index].length) {
                 if (fill(g, vertical + v_slot_index, words[i].str, 1)) {
                     words[i].used = 1;
-                    if (solve(g, words, word_count, horizontal, h_count, vertical, v_count, slot_index + 1)) {
+                    if (solve(c_count, g, words, word_count, horizontal, h_count, vertical, v_count, slot_index + 1)) {
                         return 1;
                     }
 
@@ -245,17 +244,10 @@ void printGrid(Grid *grid, FILE *fp) {
     for (int i = 0; i < grid->row; ++i) {
         for (int j = 0; j < grid->col; ++j) {
             char c = (grid->matrix[i][j] == WALL_SYMBOL) ? WALL_OUTPUT_SYMBOL : grid->matrix[i][j];
-            printf("%c", c);
+            fputc(c, fp);
         }
-        printf("\n");
+        fputc('\n', fp);
     }
-
-    // for (int i = 0; i < grid->row; ++i) {
-    //     for (int j = 0; j < grid->col; ++j) {
-    //         fputc(grid->matrix[i][j], fp);
-    //     }
-    //     fputc('\n', fp);
-    // }
 }
 
 int main(int argc, char *argv[]) {
@@ -267,6 +259,7 @@ int main(int argc, char *argv[]) {
     int h_count;        // horizontal slot count
     int v_count;        // vertical slot count
 
+    int call_count = 0;
 
     // File names were provided by command line
     if (argc == 3) {
@@ -277,8 +270,8 @@ int main(int argc, char *argv[]) {
     getSlots(&grid, horizontal, &h_count, vertical, &v_count);
 
 
-    if (solve(&grid, words, &word_count, horizontal, &h_count, vertical, &v_count, 0) == 0) {
-        printf("No solution");
+    if (solve(&call_count, &grid, words, &word_count, horizontal, &h_count, vertical, &v_count, 0) == 0) {
+        printf("No solution\n");
         return 0;
     }
 
@@ -287,21 +280,7 @@ int main(int argc, char *argv[]) {
         printf("File could not be opened. Exiting program");
         return 0;
     }
-
     printGrid(&grid, result_file);
-
-    // print slot info
-    // printf("Horizontal %d:\n", h_count);
-    // for (int i = 0; i < h_count; ++i) {
-    //     printf("row: %d col: %d length: %d\n", horizontal[i].row, horizontal[i].col, horizontal[i].length);
-    // }
-    // printf("Vertical %d:\n", v_count);
-    // for (int i = 0; i < v_count; ++i) {
-    //     printf("row: %d col: %d length: %d\n", vertical[i].row, vertical[i].col, vertical[i].length);
-    // }
-    // printf("\n");
-
-
     fclose(result_file);
 
     return 0;
